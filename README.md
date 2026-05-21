@@ -27,13 +27,6 @@ Finora is a modern, serverless personal finance management (PFM) ecosystem desig
 - **Authentication:** Clerk
 - **Security:** Arcjet SDK
 
-## 📸 Screenshots
-
-*(Replace these placeholders with actual image links from your project)*
-
-| Main Dashboard | AI Receipt Scanner |
-| :---: | :---: |
-| <img src="link_to_dashboard_image.png" width="400" alt="Dashboard UI" /> | <img src="link_to_scanner_image.png" width="400" alt="Scanner UI" /> |
 
 ## 🚀 Getting Started
 
@@ -49,17 +42,16 @@ Follow these steps to set up the project locally on your machine.
 ### Installation
 
 1. **Clone the repository:**
-   ```bash
+   
    git clone [https://github.com/your-username/finora.git](https://github.com/your-username/finora.git)
    cd finora
 
-```
+
 
 2. **Install dependencies:**
-```bash
+
 npm install
 
-```
 
 
 3. **Set up Environment Variables:**
