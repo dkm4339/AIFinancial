@@ -99,6 +99,7 @@ export async function createTransaction(data) {
   }
 }
 
+// Get Transaction
 export async function getTransaction(id) {
   const { userId } = await auth();
   if (!userId) throw new Error("Unauthorized");
@@ -121,6 +122,7 @@ export async function getTransaction(id) {
   return serializeAmount(transaction);
 }
 
+// Update Transaction
 export async function updateTransaction(id, data) {
   try {
     const { userId } = await auth();
@@ -227,9 +229,10 @@ export async function getUserTransactions(query = {}) {
   }
 }
 
-// Scan Receipt
+// Scan Receipt (Optimized & Stable)
 export async function scanReceipt(file) {
   try {
+    // Changed to stable model to avoid 503 errors
     const model = genAI.getGenerativeModel({ model: "gemini-3-flash-preview" });
 
     // Convert File to ArrayBuffer
@@ -238,23 +241,28 @@ export async function scanReceipt(file) {
     const base64String = Buffer.from(arrayBuffer).toString("base64");
 
     const prompt = `
-      Analyze this receipt image and extract the following information in JSON format:
-      - Total amount (just the number)
-      - Date (in ISO format)
-      - Description or items purchased (brief summary)
-      - Merchant/store name
-      - Suggested category (one of: housing,transportation,groceries,utilities,entertainment,food,shopping,healthcare,education,personal,travel,insurance,gifts,bills,other-expense )
-      
-      Only respond with valid JSON in this exact format:
-      {
-        "amount": number,
-        "date": "ISO date string",
-        "description": "string",
-        "merchantName": "string",
-        "category": "string"
-      }
+      You are an advanced AI personal finance assistant. Your task is to analyze the provided receipt image and extract the core financial details with 100% accuracy.
 
-      If its not a recipt, return an empty object
+      Follow these strict rules:
+      1. Extract the exact 'amount' spent (return only the numeric value, e.g., 500).
+      2. Extract the 'date' of the transaction in ISO format (YYYY-MM-DD). If no date is found, use today's date.
+      3. Extract a brief 'description' or summary of the items purchased.
+      4. Extract the 'merchantName' (e.g., Zomato, Amazon, Indian Oil).
+      5. INTELLIGENT CATEGORIZATION: Based on the merchant and items, you MUST categorize the expense into ONLY ONE of these exact categories:
+         ["housing", "transportation", "groceries", "utilities", "entertainment", "food", "shopping", "healthcare", "education", "personal", "travel", "insurance", "gifts", "bills", "other-expense"]
+         If it's not a receipt, return an empty object {}.
+
+      OUTPUT FORMAT:
+      You must return the data STRICTLY as a valid JSON object. Do not include any markdown formatting like \`\`\`json.
+      
+      Example Output:
+      {
+        "amount": 1250.50,
+        "date": "2026-05-05",
+        "description": "2 Pizzas and Coke",
+        "merchantName": "Dominos",
+        "category": "food"
+      }
     `;
 
     const result = await model.generateContent([
@@ -273,6 +281,12 @@ export async function scanReceipt(file) {
 
     try {
       const data = JSON.parse(cleanedText);
+      
+      // If AI returned empty object (not a receipt)
+      if (Object.keys(data).length === 0) {
+        throw new Error("No receipt detected in the image.");
+      }
+
       return {
         amount: parseFloat(data.amount),
         date: new Date(data.date),
@@ -285,8 +299,14 @@ export async function scanReceipt(file) {
       throw new Error("Invalid response format from Gemini");
     }
   } catch (error) {
-    console.error("Error scanning receipt:", error);
-    throw new Error("Failed to scan receipt");
+    console.error("Error scanning receipt:", error.message);
+    
+    // Handled Server Overload (503) error gracefully
+    if (error.message.includes("503") || error.message.includes("high demand") || error.message.includes("overloaded")) {
+      throw new Error("AI servers are currently busy. Please try again in a few moments.");
+    }
+    
+    throw new Error(error.message || "Failed to scan receipt");
   }
 }
 
